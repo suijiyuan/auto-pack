@@ -36,7 +36,7 @@ internal sealed class MainForm : ThemedForm
     {
         SuspendLayout();
         Text = "文件传输打包"; Font = new Font("Microsoft YaHei UI", 10);
-        ClientSize = new Size(980, 690); MinimumSize = new Size(820, 620);
+        MinimumSize = new Size(820, 620); Size = MinimumSize;
         AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi; StartPosition = FormStartPosition.CenterScreen;
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(26), ColumnCount = 1, RowCount = 9 };
