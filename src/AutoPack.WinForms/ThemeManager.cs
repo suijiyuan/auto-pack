@@ -134,7 +134,17 @@ internal static class ThemeManager
 
 internal class ThemedForm : Form
 {
+    private static readonly Icon applicationIcon = LoadApplicationIcon();
     private AppTheme theme;
+
+    protected ThemedForm() => Icon = applicationIcon;
+
+    private static Icon LoadApplicationIcon()
+    {
+        using var stream = typeof(ThemedForm).Assembly.GetManifestResourceStream("AutoPack.AppIcon.ico")
+            ?? throw new InvalidOperationException("缺少应用图标资源。");
+        return new Icon(stream);
+    }
 
     protected void ApplyTheme(AppTheme value)
     {
@@ -159,13 +169,35 @@ internal sealed class ThemedButton : Button
 {
     private ThemePalette palette = ThemePalette.For(AppTheme.Light);
 
+    protected override Size DefaultSize => new(128, 36);
+
     public ThemedButton()
     {
         AutoSize = false;
-        Size = new Size(128, 36);
+        Size = LogicalToDeviceUnits(DefaultSize);
         Margin = new Padding(0, 2, 10, 2);
         FlatStyle = FlatStyle.Flat;
         UseVisualStyleBackColor = false;
+    }
+
+    public override Size GetPreferredSize(Size proposedSize) => LogicalToDeviceUnits(DefaultSize);
+
+    protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
+    {
+        var size = LogicalToDeviceUnits(DefaultSize);
+        base.SetBoundsCore(x, y, size.Width, size.Height, specified);
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        Size = LogicalToDeviceUnits(DefaultSize);
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        Size = LogicalToDeviceUnits(DefaultSize);
     }
 
     internal void SetPalette(ThemePalette value)

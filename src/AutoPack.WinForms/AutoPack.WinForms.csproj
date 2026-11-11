@@ -8,9 +8,13 @@
     <Nullable>enable</Nullable>
     <AssemblyName>AutoPack</AssemblyName>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets/AppIcon.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <Product>文件传输打包</Product>
     <Description>文件整理与加密分卷压缩工具</Description>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../AutoPack.Core/AutoPack.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets/AppIcon.ico" LogicalName="AutoPack.AppIcon.ico" />
+  </ItemGroup>
 </Project>

@@ -34,8 +34,10 @@ internal sealed class MainForm : ThemedForm
 
     public MainForm()
     {
+        SuspendLayout();
         Text = "文件传输打包"; Font = new Font("Microsoft YaHei UI", 10);
         ClientSize = new Size(980, 690); MinimumSize = new Size(820, 620);
+        AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi; StartPosition = FormStartPosition.CenterScreen;
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(26), ColumnCount = 1, RowCount = 9 };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -89,6 +91,7 @@ internal sealed class MainForm : ThemedForm
                 MessageBox.Show(this, settingsError.Message, "需要重新配置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             if (settings is null) ShowSettings();
         };
+        ResumeLayout(true);
     }
 
     private void ShowSettings()
