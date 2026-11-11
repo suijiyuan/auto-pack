@@ -45,12 +45,12 @@ await Test("设置重启恢复且配置没有明文密码", () =>
     Throws<InvalidDataException>(() => store.Load());
     return Task.CompletedTask;
 });
-await Test("浅色和深色主题保存后可恢复且修改主题保留密码", () =>
+await Test("浅色、深色和跟随系统主题保存后可恢复且修改主题保留密码", () =>
 {
     using var temp = new TempDirectory();
     var path = Path.Combine(temp.Path, "settings.json");
     var store = new SettingsStore(path, new TestProtector());
-    foreach (var theme in new[] { AppTheme.Dark, AppTheme.Light })
+    foreach (var theme in new[] { AppTheme.Dark, AppTheme.Light, AppTheme.System })
     {
         store.Save(new AppSettings(temp.Path, "原密码", theme));
         var restored = new SettingsStore(path, new TestProtector()).Load()!;

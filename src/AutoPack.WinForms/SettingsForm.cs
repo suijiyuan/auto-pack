@@ -60,13 +60,13 @@ internal sealed class SettingsForm : ThemedForm
             if (dialog.ShowDialog(this) == DialogResult.OK) output.Text = dialog.SelectedPath;
         };
         layout.Controls.Add(browse, 2, 0);
-        theme.Items.AddRange(["浅色", "深色"]);
+        theme.Items.AddRange(["浅色", "深色", "跟随系统"]);
         theme.SelectedIndex = (int)(current?.Theme ?? AppTheme.Light);
         theme.SelectedIndexChanged += (_, _) => ApplyTheme(SelectedTheme);
         theme.DrawItem += (_, e) =>
         {
             if (e.Index < 0) return;
-            var palette = ThemePalette.For(SelectedTheme);
+            var palette = ThemePalette.For(EffectiveTheme);
             var selected = (e.State & DrawItemState.Selected) != 0;
             using var background = new SolidBrush(selected ? palette.Selection : palette.Surface);
             e.Graphics.FillRectangle(background, e.Bounds);
@@ -125,7 +125,12 @@ internal sealed class SettingsForm : ThemedForm
         ResumeLayout(true);
     }
 
-    private AppTheme SelectedTheme => theme.SelectedIndex == 1 ? AppTheme.Dark : AppTheme.Light;
+    private AppTheme SelectedTheme => theme.SelectedIndex switch
+    {
+        1 => AppTheme.Dark,
+        2 => AppTheme.System,
+        _ => AppTheme.Light
+    };
 
     private void Save(object? sender, EventArgs e)
     {

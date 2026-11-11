@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace AutoPack.Core;
 
-public enum AppTheme { Light, Dark }
+public enum AppTheme { Light, Dark, System }
 public sealed record AppSettings(string OutputDirectory, string Password, AppTheme Theme = AppTheme.Light);
 public interface ISecretProtector
 {
@@ -62,7 +62,7 @@ public sealed class SettingsStore(string path, ISecretProtector protector)
 
     public static void Validate(AppSettings settings)
     {
-        if (!Enum.IsDefined(settings.Theme)) throw new ArgumentException("请选择浅色或深色主题。");
+        if (!Enum.IsDefined(settings.Theme)) throw new ArgumentException("请选择浅色、深色或跟随系统主题。");
         if (string.IsNullOrWhiteSpace(settings.OutputDirectory) || !Path.IsPathFullyQualified(settings.OutputDirectory))
             throw new ArgumentException("请选择有效的绝对输出路径。");
         _ = Path.GetFullPath(settings.OutputDirectory);

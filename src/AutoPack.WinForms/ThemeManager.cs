@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security;
 using AutoPack.Core;
+using Microsoft.Win32;
 
 namespace AutoPack.WinForms;
 
@@ -29,6 +31,21 @@ internal static class ThemeManager
 {
     private sealed class NativeThemeState { public bool Dark; }
     private static readonly ConditionalWeakTable<Control, NativeThemeState> nativeThemes = new();
+
+    public static AppTheme Resolve(AppTheme theme)
+    {
+        if (theme != AppTheme.System) return theme;
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is int value && value == 0
+                ? AppTheme.Dark : AppTheme.Light;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            return AppTheme.Light;
+        }
+    }
 
     public static void Apply(Control control, AppTheme theme)
     {
@@ -136,6 +153,7 @@ internal class ThemedForm : Form
 {
     private static readonly Icon applicationIcon = LoadApplicationIcon();
     private AppTheme theme;
+    protected AppTheme EffectiveTheme { get; private set; } = AppTheme.Light;
 
     protected ThemedForm() => Icon = applicationIcon;
 
@@ -149,11 +167,12 @@ internal class ThemedForm : Form
     protected void ApplyTheme(AppTheme value)
     {
         theme = value;
+        EffectiveTheme = ThemeManager.Resolve(value);
         SuspendLayout();
         try
         {
-            ThemeManager.Apply(this, theme);
-            ThemeManager.ApplyTitleBar(this, theme);
+            ThemeManager.Apply(this, EffectiveTheme);
+            ThemeManager.ApplyTitleBar(this, EffectiveTheme);
         }
         finally { ResumeLayout(true); }
     }
@@ -161,7 +180,16 @@ internal class ThemedForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        ThemeManager.ApplyTitleBar(this, theme);
+        ApplyTheme(theme);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+        // Windows broadcasts preference changes to top-level windows on their UI thread.
+        if (m.Msg == 0x001A /* WM_SETTINGCHANGE */ && theme == AppTheme.System
+            && !IsDisposed && !Disposing && ThemeManager.Resolve(theme) != EffectiveTheme)
+            ApplyTheme(theme);
     }
 }
 
