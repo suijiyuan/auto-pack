@@ -7,6 +7,7 @@ internal sealed class SettingsForm : Form
     private readonly TextBox output = new() { Dock = DockStyle.Fill };
     private readonly TextBox password = new() { Dock = DockStyle.Fill, UseSystemPasswordChar = true, MaxLength = 1024 };
     private readonly TextBox confirm = new() { Dock = DockStyle.Fill, UseSystemPasswordChar = true, MaxLength = 1024 };
+    private readonly CheckBox showPassword = new() { Text = "显示输入的密码", AutoSize = true };
     private readonly SettingsStore store;
     private readonly AppSettings? current;
     public AppSettings? SavedSettings { get; private set; }
@@ -27,7 +28,8 @@ internal sealed class SettingsForm : Form
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
-        for (var i = 0; i < 3; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        for (var i = 0; i < 2; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
@@ -42,16 +44,23 @@ internal sealed class SettingsForm : Form
         layout.Controls.Add(browse, 2, 0);
         layout.Controls.Add(LabelFor(current is null ? "加密密码" : "新密码"), 0, 1);
         layout.Controls.Add(password, 1, 1); layout.SetColumnSpan(password, 2);
-        layout.Controls.Add(LabelFor("确认密码"), 0, 2);
+        var confirmLabel = LabelFor("确认密码");
+        layout.Controls.Add(confirmLabel, 0, 2);
         layout.Controls.Add(confirm, 1, 2); layout.SetColumnSpan(confirm, 2);
-        var show = new CheckBox { Text = "显示输入的密码", AutoSize = true };
-        show.CheckedChanged += (_, _) => password.UseSystemPasswordChar = confirm.UseSystemPasswordChar = !show.Checked;
-        layout.Controls.Add(show, 1, 3); layout.SetColumnSpan(show, 2);
+        showPassword.CheckedChanged += (_, _) =>
+        {
+            layout.SuspendLayout();
+            password.UseSystemPasswordChar = !showPassword.Checked;
+            confirmLabel.Visible = confirm.Visible = confirm.Enabled = !showPassword.Checked;
+            if (showPassword.Checked) confirm.Clear();
+            layout.ResumeLayout(true);
+        };
+        layout.Controls.Add(showPassword, 1, 3); layout.SetColumnSpan(showPassword, 2);
         var help = new Label
         {
             Text = current is null
                 ? "保存一次后，后续打包自动使用这些设置。\n密码由 Windows 当前用户凭据加密保存。"
-                : "密码已配置；两项留空即可保留原密码。\n修改密码只影响之后的压缩包，旧压缩包仍需原密码。",
+                : "密码已配置；密码留空即可保留原密码。\n修改密码只影响之后的压缩包，旧压缩包仍需原密码。",
             Dock = DockStyle.Fill, ForeColor = Color.DimGray, AutoSize = false
         };
         layout.Controls.Add(help, 0, 4); layout.SetColumnSpan(help, 3);
@@ -70,9 +79,8 @@ internal sealed class SettingsForm : Form
     {
         try
         {
-            var keepPassword = current is not null && password.Text.Length == 0 && confirm.Text.Length == 0;
-            if (!keepPassword && password.Text != confirm.Text) throw new ArgumentException("两次输入的密码不一致。");
-            var settings = new AppSettings(output.Text.Trim(), keepPassword ? current!.Password : password.Text);
+            var resolvedPassword = PasswordInput.Resolve(password.Text, confirm.Text, showPassword.Checked, current?.Password);
+            var settings = new AppSettings(output.Text.Trim(), resolvedPassword);
             SettingsStore.Validate(settings);
             Directory.CreateDirectory(settings.OutputDirectory);
             var probe = Path.Combine(settings.OutputDirectory, ".autopack-probe-" + Guid.NewGuid().ToString("N"));

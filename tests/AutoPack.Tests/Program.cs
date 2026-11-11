@@ -7,10 +7,11 @@ var failures = 0;
 await Test("已有文件夹和分卷均参与日期序号计算", () =>
 {
     using var temp = new TempDirectory();
-    Directory.CreateDirectory(Path.Combine(temp.Path, "文件传输-2026-11-11-002"));
-    File.WriteAllText(Path.Combine(temp.Path, "文件传输-2026-11-11-007.7z.001"), "existing");
-    Equal("文件传输-2026-11-11-008", PackService.NextName(temp.Path, new DateOnly(2026, 11, 11)));
-    Equal("文件传输-2026-11-12-001", PackService.NextName(temp.Path, new DateOnly(2026, 11, 12)));
+    Directory.CreateDirectory(Path.Combine(temp.Path, "文件传输-20261111-002"));
+    File.WriteAllText(Path.Combine(temp.Path, "文件传输-20261111-007.7z.001"), "existing");
+    Equal("文件传输-20261111-008", PackService.NextName(temp.Path, new DateOnly(2026, 11, 11)));
+    Equal("文件传输-20261112-001", PackService.NextName(temp.Path, new DateOnly(2026, 11, 12)));
+    Equal("文件传输-20260102-001", PackService.NextName(temp.Path, new DateOnly(2026, 1, 2)));
     return Task.CompletedTask;
 });
 await Test("拒绝 Windows 同名文件和重复选择", () =>
@@ -48,6 +49,38 @@ await Test("拒绝空密码及交互控制字符", () =>
 {
     foreach (var password in new[] { "", " ", "a\nb", "a\rb", "a\0b" })
         Throws<ArgumentException>(() => SettingsStore.Validate(new AppSettings(Path.GetTempPath(), password)));
+    return Task.CompletedTask;
+});
+await Test("显示密码时单次输入即可保存且忽略旧确认内容", () =>
+{
+    using var temp = new TempDirectory();
+    var store = new SettingsStore(Path.Combine(temp.Path, "settings.json"), new TestProtector());
+    store.Save(new AppSettings(temp.Path, PasswordInput.Resolve("中文 新密码!42", "", true)));
+    Equal("中文 新密码!42", store.Load()!.Password);
+    store.Save(new AppSettings(temp.Path, PasswordInput.Resolve("另一个密码", "旧确认内容", true, store.Load()!.Password)));
+    Equal("另一个密码", store.Load()!.Password);
+    return Task.CompletedTask;
+});
+await Test("隐藏密码时必须确认一致且留空可保留原密码", () =>
+{
+    Equal("新密码", PasswordInput.Resolve("新密码", "新密码", false));
+    Throws<ArgumentException>(() => PasswordInput.Resolve("新密码", "", false));
+    Throws<ArgumentException>(() => PasswordInput.Resolve("新密码", "不同密码", false, "原密码"));
+    Equal("原密码", PasswordInput.Resolve("", "", false, "原密码"));
+    Throws<ArgumentException>(() => PasswordInput.Resolve("", "残留确认", false, "原密码"));
+    return Task.CompletedTask;
+});
+await Test("显示密码时留空保留原密码且首次设置仍拒绝无效密码", () =>
+{
+    using var temp = new TempDirectory();
+    var store = new SettingsStore(Path.Combine(temp.Path, "settings.json"), new TestProtector());
+    store.Save(new AppSettings(temp.Path, "原密码"));
+    var previous = store.Load()!.Password;
+    store.Save(new AppSettings(temp.Path, PasswordInput.Resolve("", "残留确认", true, previous)));
+    Equal("原密码", store.Load()!.Password);
+    foreach (var value in new[] { "", " ", "a\nb", "a\rb", "a\0b" })
+        Throws<ArgumentException>(() => store.Save(new AppSettings(temp.Path, PasswordInput.Resolve(value, "", true))));
+    Equal("原密码", store.Load()!.Password);
     return Task.CompletedTask;
 });
 if (OperatingSystem.IsWindows())

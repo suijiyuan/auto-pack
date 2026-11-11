@@ -27,7 +27,6 @@ $toolDestination = Join-Path $destination 'tools'
 New-Item -ItemType Directory -Path $toolDestination -Force | Out-Null
 Copy-Item -LiteralPath $engine -Destination (Join-Path $toolDestination '7za.exe')
 Copy-Item -LiteralPath (Join-Path $projectRoot 'tools/7zip/License.txt') -Destination (Join-Path $toolDestination '7zip-License.txt')
-Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD-PARTY-NOTICES.md') -Destination $destination
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination $destination
 
 # 复制本次实际还原的运行时许可证，而不是假设单文件包能展示内置声明。

@@ -39,10 +39,15 @@ internal sealed class MainForm : Form
         AutoScaleMode = AutoScaleMode.Dpi; StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.FromArgb(246, 248, 251);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(26), ColumnCount = 1, RowCount = 9 };
-        foreach (var height in new[] { 48f, 32f, 48f }) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        foreach (var height in new[] { 32f, 48f }) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         foreach (var height in new[] { 44f, 34f, 30f, 52f, 50f }) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
-        layout.Controls.Add(new Label { Text = "文件传输打包", Font = new Font(Font.FontFamily, 22, FontStyle.Bold), Dock = DockStyle.Fill }, 0, 0);
+        layout.Controls.Add(new Label
+        {
+            Text = "文件传输打包", Font = new Font(Font.FontFamily, 22, FontStyle.Bold),
+            AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 12)
+        }, 0, 0);
         layout.Controls.Add(new Label { Text = "选择文件，一键整理、加密并分卷。", Dock = DockStyle.Fill, ForeColor = Color.DimGray }, 0, 1);
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill };
         toolbar.Controls.AddRange([add, remove, clear, configure, count]); layout.Controls.Add(toolbar, 0, 2);

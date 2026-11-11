@@ -117,7 +117,7 @@ public sealed class PackService
 
     public static string NextName(string output, DateOnly date)
     {
-        var prefix = "文件传输-" + date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "-";
+        var prefix = "文件传输-" + date.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "-";
         var pattern = new Regex("^" + Regex.Escape(prefix) + @"([0-9]+)(?:\.7z(?:\.[0-9]+)?)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         long max = 0;
         foreach (var entry in Directory.EnumerateFileSystemEntries(output))
