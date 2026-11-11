@@ -109,7 +109,8 @@ public sealed class PackService
         while (true)
         {
             token.ThrowIfCancellationRequested();
-            try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+            // Tie deletion to the exclusive handle so cleanup cannot delete a later task's lock.
+            try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose); }
             catch (IOException ex) when ((ex.HResult & 0xffff) is 32 or 33 or 11 or 35)
             { await Task.Delay(200, token); }
         }

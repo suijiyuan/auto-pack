@@ -168,12 +168,15 @@ await Test("真实加密多卷归档可恢复且隐藏文件名", async () =>
     using var temp = new TempDirectory();
     var sourceDir = Directory.CreateDirectory(Path.Combine(temp.Path, "source")).FullName;
     var output = Directory.CreateDirectory(Path.Combine(temp.Path, "output")).FullName;
+    var lockPath = Path.Combine(output, ".autopack.lock");
+    File.WriteAllText(lockPath, ""); // 兼容旧版本遗留的空锁文件。
     var source = Path.Combine(sourceDir, "中文 合同 [最终] &.bin");
     var empty = Path.Combine(sourceDir, "空文件.txt");
     var data = RandomNumberGenerator.GetBytes(180000);
     File.WriteAllBytes(source, data); File.WriteAllBytes(empty, []);
     var password = "中文 !#$& quote\"' 密码😀";
     var result = await new PackService(engine).RunAsync(new PackRequest([source, empty], output, password, 65536), null, CancellationToken.None);
+    Assert(!File.Exists(lockPath), "完成后残留锁文件");
     Assert(result.Volumes.Count >= 3, "未生成多个分卷");
     Assert(result.Volumes.All(p => new FileInfo(p).Length <= 65536), "分卷超出大小上限");
     Assert(result.Volumes[0].EndsWith(".7z.001"), "首卷命名错误");
@@ -191,6 +194,7 @@ await Test("真实加密多卷归档可恢复且隐藏文件名", async () =>
     Assert(listing.Code != 0 && !listing.Output.Contains(Path.GetFileName(source)), "无密码泄露文件名");
     var second = await new PackService(engine).RunAsync(new PackRequest([empty], output, password), null, CancellationToken.None);
     Assert(Path.GetFileName(second.Folder).EndsWith("-002"), "后续任务未递增序号");
+    Assert(!File.Exists(lockPath), "再次打包后残留锁文件");
 });
 await Test("压缩进程取消后清理本次任务且保留既有文件", async () =>
 {
@@ -208,7 +212,7 @@ await Test("压缩进程取消后清理本次任务且保留既有文件", async
     catch (OperationCanceledException) { }
     Assert(File.Exists(source), "源文件被删除");
     Equal("keep", File.ReadAllText(existing));
-    Assert(Directory.EnumerateFileSystemEntries(output).All(p => p == existing || Path.GetFileName(p) == ".autopack.lock"), "取消后存在残留任务");
+    Assert(Directory.EnumerateFileSystemEntries(output).All(p => p == existing), "取消后存在残留任务或锁文件");
 });
 await Test("失败不会删除源文件或已有任务", async () =>
 {
@@ -242,6 +246,7 @@ await Test("发布时发生外部重名冲突不会覆盖或清理外部文件",
     Equal("external", File.ReadAllText(collision));
     Equal("source", File.ReadAllText(source));
     Assert(!Directory.EnumerateDirectories(output).Any(), "失败任务目录未清理");
+    Assert(!File.Exists(Path.Combine(output, ".autopack.lock")), "失败后残留锁文件");
 });
 await Test("并发任务在同一输出目录获得不同序号", async () =>
 {
@@ -254,6 +259,26 @@ await Test("并发任务在同一输出目录获得不同序号", async () =>
         new PackService(engine).RunAsync(request, null, CancellationToken.None));
     Assert(results.Select(r => r.Folder).Distinct().Count() == 2, "并发目录重名");
     Assert(results.Any(r => r.Folder.EndsWith("-001")) && results.Any(r => r.Folder.EndsWith("-002")), "并发序号错误");
+    Assert(!File.Exists(Path.Combine(output, ".autopack.lock")), "并发任务全部完成后残留锁文件");
+});
+await Test("等待锁的任务取消时不会删除其他任务正在使用的锁", async () =>
+{
+    using var temp = new TempDirectory();
+    var output = Directory.CreateDirectory(Path.Combine(temp.Path, "output")).FullName;
+    var source = Path.Combine(temp.Path, "source.txt"); File.WriteAllText(source, "source");
+    var lockPath = Path.Combine(output, ".autopack.lock");
+    using (var heldLock = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+    {
+        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var waiting = new PackService(engine).RunAsync(new PackRequest([source], output, "password"), null, cancel.Token);
+        Assert(!waiting.IsCompleted, "其他任务未等待正在使用的锁");
+        cancel.Cancel();
+        try { await waiting; throw new Exception("等待锁时取消未生效"); }
+        catch (OperationCanceledException) { }
+        Assert(File.Exists(lockPath), "等待者删除了其他任务正在使用的锁");
+        Assert(!Directory.EnumerateDirectories(output).Any(), "等待锁时创建了任务目录");
+    }
+    File.Delete(lockPath);
 });
 await Test("保护密码失败保留原配置", () =>
 {
