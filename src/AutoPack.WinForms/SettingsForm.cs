@@ -4,10 +4,10 @@ namespace AutoPack.WinForms;
 
 internal sealed class SettingsForm : Form
 {
-    private readonly TextBox output = new() { Dock = DockStyle.Fill };
-    private readonly TextBox password = new() { Dock = DockStyle.Fill, UseSystemPasswordChar = true, MaxLength = 1024 };
-    private readonly TextBox confirm = new() { Dock = DockStyle.Fill, UseSystemPasswordChar = true, MaxLength = 1024 };
-    private readonly CheckBox showPassword = new() { Text = "显示输入的密码", AutoSize = true };
+    private readonly TextBox output = new() { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 12, 14) };
+    private readonly TextBox password = new() { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 14), UseSystemPasswordChar = true, MaxLength = 1024 };
+    private readonly TextBox confirm = new() { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 14), UseSystemPasswordChar = true, MaxLength = 1024 };
+    private readonly CheckBox showPassword = new() { Text = "显示输入的密码", AutoSize = true, Margin = new Padding(0, 0, 0, 18) };
     private readonly SettingsStore store;
     private readonly AppSettings? current;
     public AppSettings? SavedSettings { get; private set; }
@@ -19,22 +19,35 @@ internal sealed class SettingsForm : Form
         this.current = current;
         Text = "打包设置";
         Font = new Font("Microsoft YaHei UI", 10);
-        ClientSize = new Size(650, 330);
-        MinimumSize = new Size(600, 360);
+        ClientSize = new Size(650, 360);
+        MinimumSize = new Size(620, 390);
+        BackColor = Color.White;
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
         AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(22), ColumnCount = 3, RowCount = 6 };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, Padding = new Padding(24, 24, 24, 20),
+            Margin = Padding.Empty, ColumnCount = 3, RowCount = 6
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        for (var i = 0; i < 4; i++) layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        for (var i = 0; i < 5; i++) layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.Controls.Add(LabelFor("输出目录"), 0, 0); layout.Controls.Add(output, 1, 0);
-        var browse = new Button { Text = "浏览…", AutoSize = true, MinimumSize = new Size(78, 34), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+        var browse = new Button
+        {
+            Text = "浏览…", Width = 84, Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Margin = new Padding(0, 0, 0, 14), UseVisualStyleBackColor = true
+        };
+        output.SizeChanged += (_, _) => browse.Height = output.Height;
         browse.Click += (_, _) =>
         {
             using var dialog = new FolderBrowserDialog { Description = "选择固定的输出目录", UseDescriptionForTitle = true };
@@ -61,20 +74,33 @@ internal sealed class SettingsForm : Form
             Text = current is null
                 ? "保存一次后，后续打包自动使用这些设置。\n密码由 Windows 当前用户凭据加密保存。"
                 : "密码已配置；密码留空即可保留原密码。\n修改密码只影响之后的压缩包，旧压缩包仍需原密码。",
-            Dock = DockStyle.Fill, ForeColor = Color.DimGray, AutoSize = false
+            Dock = DockStyle.Fill, ForeColor = Color.FromArgb(90, 102, 118), AutoSize = true,
+            BackColor = Color.FromArgb(246, 248, 251), Padding = new Padding(12, 10, 12, 10), Margin = Padding.Empty
         };
         layout.Controls.Add(help, 0, 4); layout.SetColumnSpan(help, 3);
         var buttons = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Margin = Padding.Empty
+            FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Margin = Padding.Empty,
+            Padding = new Padding(24, 14, 24, 14), BackColor = Color.FromArgb(246, 248, 251)
         };
-        var save = new Button { Text = "保存设置", AutoSize = true, MinimumSize = new Size(96, 34) };
-        var cancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(96, 34), DialogResult = DialogResult.Cancel };
+        var save = new Button
+        {
+            Text = "保存设置", AutoSize = true, MinimumSize = new Size(100, 36), Margin = Padding.Empty,
+            BackColor = Color.FromArgb(35, 92, 210), ForeColor = Color.White, FlatStyle = FlatStyle.Flat
+        };
+        save.FlatAppearance.BorderSize = 0;
+        var cancel = new Button
+        {
+            Text = "取消", AutoSize = true, MinimumSize = new Size(100, 36),
+            Margin = new Padding(0, 0, 10, 0), DialogResult = DialogResult.Cancel, UseVisualStyleBackColor = true
+        };
         save.Click += Save;
         buttons.Controls.Add(save); buttons.Controls.Add(cancel);
-        layout.Controls.Add(buttons, 0, 5); layout.SetColumnSpan(buttons, 3);
-        Controls.Add(layout); AcceptButton = save; CancelButton = cancel;
+        root.Controls.Add(layout, 0, 0);
+        root.Controls.Add(buttons, 0, 1);
+        Controls.Add(root); AcceptButton = save; CancelButton = cancel;
+        browse.Height = output.Height;
         output.Text = current?.OutputDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "文件传输");
         if (current is not null) password.PlaceholderText = "留空表示保持原密码";
         ResumeLayout(true);
@@ -99,5 +125,9 @@ internal sealed class SettingsForm : Form
         { MessageBox.Show(this, ex.Message, "设置未保存", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
-    private static Label LabelFor(string text) => new() { Text = text, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+    private static Label LabelFor(string text) => new()
+    {
+        Text = text, AutoSize = true, Anchor = AnchorStyles.Left,
+        Margin = new Padding(0, 0, 16, 14), TextAlign = ContentAlignment.MiddleLeft
+    };
 }
