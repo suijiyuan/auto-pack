@@ -3,7 +3,7 @@ using AutoPack.Core;
 
 namespace AutoPack.WinForms;
 
-internal sealed class MainForm : Form
+internal sealed class MainForm : ThemedForm
 {
     private readonly SettingsStore store = new(
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AutoPack", "settings.json"),
@@ -20,13 +20,13 @@ internal sealed class MainForm : Form
     private readonly Label output = new() { AutoEllipsis = true, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
     private readonly Label preview = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
     private readonly Label count = new() { AutoSize = true, Padding = new Padding(10, 9, 0, 0) };
-    private readonly ProgressBar progress = new() { Dock = DockStyle.Fill };
+    private readonly ThemedProgressBar progress = new() { Dock = DockStyle.Fill };
     private readonly Label status = new() { Dock = DockStyle.Fill, AutoEllipsis = true, Text = "请添加文件。" };
     private readonly DataGridView list = new()
     {
         Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
         AllowUserToResizeRows = false, RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle
+        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, BorderStyle = BorderStyle.FixedSingle
     };
     private CancellationTokenSource? cancellation;
     private Task<PackResult>? job;
@@ -37,7 +37,6 @@ internal sealed class MainForm : Form
         Text = "文件传输打包"; Font = new Font("Microsoft YaHei UI", 10);
         ClientSize = new Size(980, 690); MinimumSize = new Size(820, 620);
         AutoScaleMode = AutoScaleMode.Dpi; StartPosition = FormStartPosition.CenterScreen;
-        BackColor = Color.FromArgb(246, 248, 251);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(26), ColumnCount = 1, RowCount = 9 };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         foreach (var height in new[] { 32f, 48f }) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
@@ -48,7 +47,7 @@ internal sealed class MainForm : Form
             Text = "文件传输打包", Font = new Font(Font.FontFamily, 22, FontStyle.Bold),
             AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 12)
         }, 0, 0);
-        layout.Controls.Add(new Label { Text = "选择文件，一键整理、加密并分卷。", Dock = DockStyle.Fill, ForeColor = Color.DimGray }, 0, 1);
+        layout.Controls.Add(new Label { Text = "选择文件，一键整理、加密并分卷。", Dock = DockStyle.Fill, Tag = ThemeRole.Muted }, 0, 1);
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill };
         toolbar.Controls.AddRange([add, remove, clear, configure, count]); layout.Controls.Add(toolbar, 0, 2);
         list.Columns.Add("name", "文件名"); list.Columns.Add("size", "大小"); list.Columns.Add("path", "原始位置");
@@ -61,7 +60,6 @@ internal sealed class MainForm : Form
         var bar = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 7, 0, 7) }; bar.Controls.Add(progress);
         layout.Controls.Add(bar, 0, 6); layout.Controls.Add(status, 0, 7);
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill };
-        start.BackColor = Color.FromArgb(35, 92, 210); start.ForeColor = Color.White; start.FlatStyle = FlatStyle.Flat;
         actions.Controls.AddRange([start, cancel, open]); layout.Controls.Add(actions, 0, 8);
         Controls.Add(layout);
         cancel.Enabled = false;
@@ -80,22 +78,27 @@ internal sealed class MainForm : Form
                 status.Text = "正在取消任务，清理完成后退出…";
             }
         };
-        Shown += (_, _) => LoadSettings();
-    }
-
-    private void LoadSettings()
-    {
+        Exception? settingsError = null;
         try { settings = store.Load(); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        { MessageBox.Show(this, ex.Message, "需要重新配置", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-        if (settings is null) ShowSettings();
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { settingsError = ex; }
+        ApplyTheme(settings?.Theme ?? AppTheme.Light);
         RefreshSettings();
+        Shown += (_, _) =>
+        {
+            if (settingsError is not null)
+                MessageBox.Show(this, settingsError.Message, "需要重新配置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (settings is null) ShowSettings();
+        };
     }
 
     private void ShowSettings()
     {
         using var dialog = new SettingsForm(store, settings);
-        if (dialog.ShowDialog(this) == DialogResult.OK) settings = dialog.SavedSettings;
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            settings = dialog.SavedSettings;
+            ApplyTheme(settings?.Theme ?? AppTheme.Light);
+        }
         RefreshSettings();
     }
 
@@ -182,6 +185,6 @@ internal sealed class MainForm : Form
         { MessageBox.Show(this, ex.Message, "无法打开目录", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
-    private static Button MakeButton(string text) => new() { Text = text, AutoSize = true, Height = 36, MinimumSize = new Size(105, 36), Margin = new Padding(0, 2, 10, 2) };
+    private static Button MakeButton(string text) => new ThemedButton { Text = text };
     private static string FormatSize(long size) => size < 1024 ? $"{size} B" : size < 1024 * 1024 ? $"{size / 1024d:F1} KiB" : size < 1024L * 1024 * 1024 ? $"{size / 1048576d:F1} MiB" : $"{size / 1073741824d:F2} GiB";
 }

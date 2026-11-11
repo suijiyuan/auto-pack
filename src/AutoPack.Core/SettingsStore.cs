@@ -4,7 +4,8 @@ using System.Text.Json;
 
 namespace AutoPack.Core;
 
-public sealed record AppSettings(string OutputDirectory, string Password);
+public enum AppTheme { Light, Dark }
+public sealed record AppSettings(string OutputDirectory, string Password, AppTheme Theme = AppTheme.Light);
 public interface ISecretProtector
 {
     byte[] Protect(byte[] value);
@@ -12,7 +13,7 @@ public interface ISecretProtector
 }
 public sealed class SettingsStore(string path, ISecretProtector protector)
 {
-    private sealed record StoredSettings(int Version, string OutputDirectory, string ProtectedPassword);
+    private sealed record StoredSettings(int Version, string OutputDirectory, string ProtectedPassword, AppTheme Theme = AppTheme.Light);
 
     public AppSettings? Load()
     {
@@ -25,7 +26,7 @@ public sealed class SettingsStore(string path, ISecretProtector protector)
             if (stored is null || stored.Version != 1 || string.IsNullOrEmpty(stored.ProtectedPassword))
                 throw new InvalidDataException();
             plain = protector.Unprotect(Convert.FromBase64String(stored.ProtectedPassword));
-            var settings = new AppSettings(stored.OutputDirectory, new UTF8Encoding(false, true).GetString(plain));
+            var settings = new AppSettings(stored.OutputDirectory, new UTF8Encoding(false, true).GetString(plain), stored.Theme);
             Validate(settings);
             return settings;
         }
@@ -43,7 +44,7 @@ public sealed class SettingsStore(string path, ISecretProtector protector)
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            var stored = new StoredSettings(1, Path.GetFullPath(settings.OutputDirectory), Convert.ToBase64String(protector.Protect(plain)));
+            var stored = new StoredSettings(1, Path.GetFullPath(settings.OutputDirectory), Convert.ToBase64String(protector.Protect(plain)), settings.Theme);
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
             using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
@@ -61,6 +62,7 @@ public sealed class SettingsStore(string path, ISecretProtector protector)
 
     public static void Validate(AppSettings settings)
     {
+        if (!Enum.IsDefined(settings.Theme)) throw new ArgumentException("请选择浅色或深色主题。");
         if (string.IsNullOrWhiteSpace(settings.OutputDirectory) || !Path.IsPathFullyQualified(settings.OutputDirectory))
             throw new ArgumentException("请选择有效的绝对输出路径。");
         _ = Path.GetFullPath(settings.OutputDirectory);

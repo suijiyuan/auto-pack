@@ -45,6 +45,58 @@ await Test("设置重启恢复且配置没有明文密码", () =>
     Throws<InvalidDataException>(() => store.Load());
     return Task.CompletedTask;
 });
+await Test("浅色和深色主题保存后可恢复且修改主题保留密码", () =>
+{
+    using var temp = new TempDirectory();
+    var path = Path.Combine(temp.Path, "settings.json");
+    var store = new SettingsStore(path, new TestProtector());
+    foreach (var theme in new[] { AppTheme.Dark, AppTheme.Light })
+    {
+        store.Save(new AppSettings(temp.Path, "原密码", theme));
+        var restored = new SettingsStore(path, new TestProtector()).Load()!;
+        Equal(theme, restored.Theme);
+        var password = PasswordInput.Resolve("", "", false, restored.Password);
+        store.Save(new AppSettings(temp.Path, password, theme));
+        Equal("原密码", store.Load()!.Password);
+        Assert(!File.ReadAllText(path).Contains("原密码"), "修改主题后泄露密码");
+    }
+    return Task.CompletedTask;
+});
+await Test("旧配置没有主题字段时默认浅色且保留目录和密码", () =>
+{
+    using var temp = new TempDirectory();
+    var path = Path.Combine(temp.Path, "settings.json");
+    File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(new
+    {
+        Version = 1, OutputDirectory = temp.Path,
+        ProtectedPassword = Convert.ToBase64String(new TestProtector().Protect(Encoding.UTF8.GetBytes("旧密码")))
+    }));
+    var restored = new SettingsStore(path, new TestProtector()).Load()!;
+    Equal(AppTheme.Light, restored.Theme);
+    Equal(temp.Path, restored.OutputDirectory);
+    Equal("旧密码", restored.Password);
+    return Task.CompletedTask;
+});
+await Test("无效主题不能覆盖原配置且损坏主题不会静默重置", () =>
+{
+    using var temp = new TempDirectory();
+    var path = Path.Combine(temp.Path, "settings.json");
+    var store = new SettingsStore(path, new TestProtector());
+    store.Save(new AppSettings(temp.Path, "原密码", AppTheme.Dark));
+    var original = File.ReadAllText(path);
+    Throws<ArgumentException>(() => store.Save(new AppSettings(temp.Path, "原密码", (AppTheme)99)));
+    Equal(original, File.ReadAllText(path));
+    var json = System.Text.Json.Nodes.JsonNode.Parse(original)!;
+    foreach (var invalid in new[] { "99", "null", "\"unknown\"" })
+    {
+        json["Theme"] = System.Text.Json.Nodes.JsonNode.Parse(invalid);
+        File.WriteAllText(path, json.ToJsonString());
+        var corrupted = File.ReadAllText(path);
+        Throws<InvalidDataException>(() => store.Load());
+        Equal(corrupted, File.ReadAllText(path));
+    }
+    return Task.CompletedTask;
+});
 await Test("拒绝空密码及交互控制字符", () =>
 {
     foreach (var password in new[] { "", " ", "a\nb", "a\rb", "a\0b" })
@@ -207,10 +259,11 @@ await Test("保护密码失败保留原配置", () =>
 {
     using var temp = new TempDirectory();
     var path = Path.Combine(temp.Path, "settings.json");
-    new SettingsStore(path, new TestProtector()).Save(new AppSettings(temp.Path, "old password"));
+    new SettingsStore(path, new TestProtector()).Save(new AppSettings(temp.Path, "old password", AppTheme.Dark));
     var original = File.ReadAllText(path);
-    Throws<CryptographicException>(() => new SettingsStore(path, new FailingProtector()).Save(new AppSettings(temp.Path, "new password")));
+    Throws<CryptographicException>(() => new SettingsStore(path, new FailingProtector()).Save(new AppSettings(temp.Path, "new password", AppTheme.Light)));
     Equal(original, File.ReadAllText(path));
+    Equal(AppTheme.Dark, new SettingsStore(path, new TestProtector()).Load()!.Theme);
     Assert(Directory.GetFiles(temp.Path).Length == 1, "残留临时配置");
     return Task.CompletedTask;
 });
