@@ -4,10 +4,10 @@ on:
     tags:
       - 'v*'
 permissions:
-  contents: read
+  contents: write
 jobs:
   release:
-    name: Build Windows package
+    name: Build Windows package and publish GitHub Release
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -18,8 +18,27 @@ jobs:
       - name: Test DPAPI, archive recovery, cancellation and publish
         shell: pwsh
         run: ./scripts/publish.ps1
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $hash = Get-FileHash -LiteralPath ./artifacts/AutoPack-win-x64.zip -Algorithm SHA256
+          "$($hash.Hash.ToLowerInvariant())  AutoPack-win-x64.zip" | Set-Content -LiteralPath ./artifacts/SHA256SUMS.txt -Encoding utf8NoBOM
       - uses: actions/upload-artifact@v4
         with:
           name: AutoPack-win-x64
-          path: artifacts/AutoPack-win-x64.zip
+          path: |
+            artifacts/AutoPack-win-x64.zip
+            artifacts/SHA256SUMS.txt
           if-no-files-found: error
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" `
+            ./artifacts/AutoPack-win-x64.zip `
+            ./artifacts/SHA256SUMS.txt `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --verify-tag `
+            --generate-notes `
+            --title "$env:GITHUB_REF_NAME"

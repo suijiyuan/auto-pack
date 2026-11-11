@@ -50,7 +50,7 @@ Windows 桌面工具：选择一组文件，自动整理到 `文件传输-当前
 GitHub Actions 分为两个工作流：
 
 - `ci.yml`：推送到 `master` 或向 `master` 提交 PR 时，在 Windows 上构建应用并运行测试。
-- `release.yml`：仅在推送 `v*` 标签时执行测试、打包并上传制品。
+- `release.yml`：仅在推送 `v*` 标签时执行测试、打包、生成 SHA256 校验文件，并创建同名 GitHub Release，上传 ZIP 和 `SHA256SUMS.txt` 附件。
 
 例如，提交代码后发布标签：
 
@@ -59,7 +59,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-标签对应的提交需包含工作流及完整项目文件。成功后，可在仓库 Actions 对应运行记录的 Artifacts 中下载 `AutoPack-win-x64` 制品。
+标签对应的提交需包含工作流及完整项目文件。成功后，可在仓库 Releases 对应版本下载 ZIP 和 `SHA256SUMS.txt`，也可在 Actions 对应运行记录的 Artifacts 中下载 `AutoPack-win-x64` 制品。工作流使用 GitHub 自动提供的 `GITHUB_TOKEN`，无需配置个人访问令牌。
 
 只运行测试：
 
