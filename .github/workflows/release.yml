@@ -1,0 +1,25 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+jobs:
+  release:
+    name: Build Windows package
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test DPAPI, archive recovery, cancellation and publish
+        shell: pwsh
+        run: ./scripts/publish.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AutoPack-win-x64
+          path: artifacts/AutoPack-win-x64.zip
+          if-no-files-found: error
