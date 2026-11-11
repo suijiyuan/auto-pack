@@ -14,6 +14,7 @@ internal sealed class SettingsForm : Form
 
     public SettingsForm(SettingsStore store, AppSettings? current)
     {
+        SuspendLayout();
         this.store = store;
         this.current = current;
         Text = "打包设置";
@@ -23,18 +24,17 @@ internal sealed class SettingsForm : Form
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
+        AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(22), ColumnCount = 3, RowCount = 6 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
-        for (var i = 0; i < 2; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        for (var i = 0; i < 4; i++) layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.Controls.Add(LabelFor("输出目录"), 0, 0); layout.Controls.Add(output, 1, 0);
-        var browse = new Button { Text = "浏览…", Dock = DockStyle.Fill };
+        var browse = new Button { Text = "浏览…", AutoSize = true, MinimumSize = new Size(78, 34), Anchor = AnchorStyles.Top | AnchorStyles.Right };
         browse.Click += (_, _) =>
         {
             using var dialog = new FolderBrowserDialog { Description = "选择固定的输出目录", UseDescriptionForTitle = true };
@@ -64,15 +64,20 @@ internal sealed class SettingsForm : Form
             Dock = DockStyle.Fill, ForeColor = Color.DimGray, AutoSize = false
         };
         layout.Controls.Add(help, 0, 4); layout.SetColumnSpan(help, 3);
-        var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
-        var save = new Button { Text = "保存设置", AutoSize = true, Height = 34 };
-        var cancel = new Button { Text = "取消", AutoSize = true, Height = 34, DialogResult = DialogResult.Cancel };
+        var buttons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Margin = Padding.Empty
+        };
+        var save = new Button { Text = "保存设置", AutoSize = true, MinimumSize = new Size(96, 34) };
+        var cancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(96, 34), DialogResult = DialogResult.Cancel };
         save.Click += Save;
         buttons.Controls.Add(save); buttons.Controls.Add(cancel);
         layout.Controls.Add(buttons, 0, 5); layout.SetColumnSpan(buttons, 3);
         Controls.Add(layout); AcceptButton = save; CancelButton = cancel;
         output.Text = current?.OutputDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "文件传输");
         if (current is not null) password.PlaceholderText = "留空表示保持原密码";
+        ResumeLayout(true);
     }
 
     private void Save(object? sender, EventArgs e)
